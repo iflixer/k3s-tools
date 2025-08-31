@@ -14,3 +14,5 @@
 
 ```bash
 curl -sL https://raw.githubusercontent.com/iflixer/k3s-tools/main/prepare-k3s-node.sh | bash
+```
+### ВАЖНО: если несколько внешних IP - надо указать в файле вручную иначе возьмет первый попавшийся
