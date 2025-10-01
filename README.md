@@ -17,7 +17,7 @@ curl -sL https://raw.githubusercontent.com/iflixer/k3s-tools/main/prepare-k3s-no
 ```
 
 ```bash
-curl -sL https://raw.githubusercontent.com/iflixer/k3s-tools/main/install_utils.sh | bash
+curl -sL https://raw.githubusercontent.com/iflixer/k3s-tools/main/install_utils | bash
 ```
 ### ВАЖНО
 
