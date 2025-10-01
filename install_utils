@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# === Настройки ===
+INSTALL_DIR="/usr/local"
+BIN_DIR="/usr/local/bin"
+ARCH="$(uname -m)"
+case "$ARCH" in
+  x86_64)   NARCH="amd64" ;;
+  aarch64)  NARCH="arm64" ;;
+  arm64)    NARCH="arm64" ;;
+  *) echo "Unsupported arch: $ARCH"; exit 1 ;;
+esac
+
+need() { command -v "$1" >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y "$1"; }
+
+echo "[1/7] Устанавливаю зависимости (curl, wget, tar, jq)..."
+need curl; need wget; need tar; need jq
+
+echo "[2/7] Определяю последнюю версию nerdctl..."
+VER="$(curl -fsSL https://api.github.com/repos/containerd/nerdctl/releases/latest | jq -r .tag_name)"
