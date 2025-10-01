@@ -19,3 +19,54 @@ need curl; need wget; need tar; need jq
 
 echo "[2/7] Определяю последнюю версию nerdctl..."
 VER="$(curl -fsSL https://api.github.com/repos/containerd/nerdctl/releases/latest | jq -r .tag_name)"
+# Фоллбек, если GitHub API недоступен
+if [[ -z "${VER}" || "${VER}" == "null" ]]; then
+  echo "Не удалось получить версию через API, использую фиксированную v2.0.0"
+  VER="v2.0.0"
+fi
+FILE="nerdctl-full-${VER#v}-linux-${NARCH}.tar.gz"
+URL="https://github.com/containerd/nerdctl/releases/download/${VER}/${FILE}"
+
+echo "[3/7] Скачиваю ${FILE}..."
+cd /tmp
+wget -q --show-progress "${URL}"
+
+echo "[4/7] Распаковываю в ${INSTALL_DIR} ..."
+sudo tar -xzf "${FILE}" -C "${INSTALL_DIR}"
+
+# Добавим симлинк на бинарь nerdctl, если его нет
+if [[ ! -e "${BIN_DIR}/nerdctl" ]]; then
+  echo "[5/7] Создаю симлинк ${BIN_DIR}/nerdctl -> ${INSTALL_DIR}/bin/nerdctl"
+  sudo ln -s "${INSTALL_DIR}/bin/nerdctl" "${BIN_DIR}/nerdctl"
+fi
+
+echo "[6/7] Генерирую конфиг и запускаю containerd..."
+# Создаём дефолтный конфиг, если отсутствует
+if [[ ! -f /etc/containerd/config.toml ]]; then
+  sudo mkdir -p /etc/containerd
+  sudo "${INSTALL_DIR}/bin/containerd" config default | sudo tee /etc/containerd/config.toml >/dev/null
+fi
+
+# Включаем systemd cgroup драйвер (рекомендуется для k8s/современных систем)
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml || true
+
+# Включаем и запускаем containerd
+sudo systemctl daemon-reload
+sudo systemctl enable --now containerd
+
+echo "[7/7] Тестовый запуск контейнера (hello-world)..."
+# Подтянем образ и запустим
+sudo nerdctl --namespace k8s.io pull hello-world:latest >/dev/null 2>&1 || sudo nerdctl pull hello-world:latest
+sudo nerdctl run --rm hello-world:latest
+
+echo
+echo "✅ Готово!"
+echo "• nerdctl: $(nerdctl --version || echo not-in-path)"
+echo "• containerd статус: $(systemctl is-active containerd)"
+echo
+echo "Примеры:"
+echo "  nerdctl images"
+echo "  nerdctl run --rm -it alpine:3.20 sh"
+echo
+echo "Опционально (rootless):"
+echo "  curl -fsSL https://raw.githubusercontent.com/containerd/nerdctl/main/docs/rootless.md"
